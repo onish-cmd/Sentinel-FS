@@ -1,0 +1,45 @@
+name: Sentinel-FS Kernel Test
+on: [push]
+
+jobs:
+  test-sentinel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev libelf-dev bpftool linux-headers-$(uname -r)
+
+      - name: Build Sentinel-FS
+        run: make
+
+      - name: Run Ransomware Simulator
+        run: |
+          # Create a script that writes high-entropy data (from /dev/urandom)
+          cat << 'EOF' > sim_ransom.py
+          import os
+          import time
+          with open("test_file.enc", "wb") as f:
+              for _ in range(100):
+                  f.write(os.urandom(4096))
+                  f.flush()
+                  print("Malicious write...")
+                  time.sleep(0.01)
+          EOF
+          # Run it in the background
+          python3 sim_ransom.py &
+          echo "SIM_PID=$!" >> $GITHUB_ENV
+
+      - name: Test Sentinel-FS
+        run: |
+          # Run sentinel for 5 seconds and check if it logs the block
+          sudo timeout 5s ./sentinel > output.log || true
+          cat output.log
+          if grep -q "BLOCK:" output.log; then
+            echo "Success: Sentinel-FS caught the ransomware!"
+          else
+            echo "Failure: Ransomware went undetected."
+            exit 1
+          fi
