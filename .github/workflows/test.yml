@@ -21,7 +21,7 @@ jobs:
       - name: Build Sentinel-FS
         run: make
 
-- name: Run Test Suite
+      - name: Run Test Suite
         run: |
           # 1. Clear kernel logs
           sudo dmesg -C
