@@ -21,6 +21,14 @@ jobs:
       - name: Build Sentinel-FS
         run: make
 
+      - name: Debug LSM Status
+        run: |
+          echo "Checking if BPF LSM is enabled..."
+          cat /sys/kernel/security/lsm
+          
+          echo "Checking if BTF is available..."
+          ls -l /sys/kernel/btf/vmlinux
+
       - name: Run Test Suite
         run: |
           # 1. Clear kernel logs
@@ -39,7 +47,7 @@ jobs:
               with open(f"test_{i}.enc", "wb") as f:
                   f.write(os.urandom(8192))
                   f.flush()
-              time.sleep(0.05)
+              time.sleep(0.01)
           EOF
           
           python3 sim_ransom.py

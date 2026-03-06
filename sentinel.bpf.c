@@ -96,7 +96,7 @@ static __always_inline bool is_high_velocity(u32 pid) {
     }
 
     stats->count++;
-    return (stats->count > 25);
+    return (stats->count > 5);
 }
 
 SEC("tracepoint/syscalls/sys_enter_write")
@@ -113,7 +113,7 @@ int handle_write_enter(struct trace_event_raw_sys_enter *ctx) {
 
     u32 entropy = calc_entropy_256(sample);
 
-    if (entropy > 7680) {
+    if (entropy > 5000) {
         if (is_high_velocity(pid)) {
             bpf_map_update_elem(&blocked_pids, &pid, &one, BPF_ANY);
             struct event *e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
