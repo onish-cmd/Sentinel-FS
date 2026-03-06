@@ -48,6 +48,6 @@ jobs:
           exit 1
         fi
 
-      - name: Check dmesg on fail
-        if: failure()
-        run: sudo dmesg | tail -n 50
+    - name: Check dmesg on fail
+      if: failure()
+      run: sudo dmesg | tail -n 50
