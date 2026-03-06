@@ -30,3 +30,4 @@ cleanup:
     sentinel_bpf__destroy(skel);
     return 0;
 }
+
