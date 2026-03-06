@@ -21,29 +21,40 @@ jobs:
       - name: Build Sentinel-FS
         run: make
 
-      - name: Run Ransomware Simulator
+- name: Run Test Suite
         run: |
-          # Create a script that writes high-entropy data (from /dev/urandom)
-          cat << 'EOF' > sim_ransom.py
-          import os
-          import time
-          with open("test_file.enc", "wb") as f:
-              for _ in range(1000):
-                  f.write(os.urandom(4096))
-                  f.flush()
-                  print("Malicious write...")
-                  time.sleep(0.01)
-          EOF
-          # Run it in the background
-          python3 sim_ransom.py &
-          echo "SIM_PID=$!" >> $GITHUB_ENV
+          # 1. Clear kernel logs
           sudo dmesg -C
-          sudo timeout 20s ./sentinel > output.log || [ $? -eq 124 ]
-          if grep "BLOCK:" output.log; then
-            echo "Pass! logs:"
+
+          sudo stdbuf -oL ./sentinel > output.log 2>&1 &
+          SENTINEL_PID=$!
+          
+          # Give the BPF 3 seconds to start
+          sleep 3
+
+          cat << 'EOF' > sim_ransom.py
+          import os, time
+          print("Starting malicious writes...")
+          for i in range(100):
+              with open(f"test_{i}.enc", "wb") as f:
+                  f.write(os.urandom(8192))
+                  f.flush()
+              time.sleep(0.05)
+          EOF
+          
+          python3 sim_ransom.py
+          
+          # 4. Give Sentinel a moment to process the last writes
+          sleep 2
+          
+          # 5. Stop Sentinel and check logs
+          sudo kill $SENTINEL_PID || true
+          
+          if grep -q "BLOCK:" output.log; then
+            echo "Pass! Sentinel detected the threat."
             cat output.log
           else
-            echo "Fail! logs:"
+            echo "Fail! No detection found."
             cat output.log
             exit 1
           fi
