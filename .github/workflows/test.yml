@@ -37,12 +37,13 @@ jobs:
           # Run it in the background
           python3 sim_ransom.py &
           echo "SIM_PID=$!" >> $GITHUB_ENV
+          sudo dmesg -c
           sudo timeout 20s ./sentinel > output.log || [ $? -eq 124 ]
-          if grep -p "BLOCK:" output.log; then
-            echo "Pass! logs:\n"
+          if grep "BLOCK:" output.log; then
+            echo "Pass! logs:"
             cat output.log
           else
-            echo "Fail! logs:\n"
+            echo "Fail! logs:"
             cat output.log
             exit 1
           fi
