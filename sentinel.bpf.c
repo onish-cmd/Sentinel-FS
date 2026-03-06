@@ -49,33 +49,25 @@ struct {
     __uint(max_entries, 256 * 1024);
 } rb SEC(".maps");
 
-// Formula: H = 8 - (1/256) * sum(c * log2(c))
-static __always_inline u32 calc_entropy_256(const unsigned char *data) {
-    u32 sum_clogc = 0;
+static __always_inline unsigned int calc_entropy_256(const unsigned char *data) {
+    unsigned int sum_clogc = 0;
     
-    #pragma unroll
-    for (int i = 0; i < 256; i++) {
-        u32 key = i;
-        u32 *val = bpf_map_lookup_elem(&histogram_scratch, &key);
-        if (val) *val = 0;
-    }
+    // Pass 1: Reset and Fill in one go
+    unsigned int local_hist[256] = {0};
 
     #pragma unroll
     for (int i = 0; i < 256; i++) {
-        u32 key = data[i];
-        u32 *val = bpf_map_lookup_elem(&histogram_scratch, &key);
-        if (val) *val += 1;
+        local_hist[data[i] & 0xff]++;
     }
 
+    // Pass 2: Calculate
     #pragma unroll
     for (int i = 0; i < 256; i++) {
-        u32 key = i;
-        u32 *val = bpf_map_lookup_elem(&histogram_scratch, &key);
-        if (val && *val > 0 && *val <= 256) {
-            sum_clogc += log_lut[*val];
+        if (local_hist[i] > 0) {
+            sum_clogc += log_lut[local_hist[i] & 0xff];
         }
     }
-
+    // Formula: H = 8 - (1/256) * sum(c * log2(c))
     return (8 << 10) - (sum_clogc >> 8);
 }
 
