@@ -9,6 +9,7 @@
 static int handle_event(void *ctx, void *data, size_t data_sz) {
     const struct event *e = data;
     printf("BLOCK: PID %d [%s] Entropy: %d/1024\n", e->pid, e->comm, e->entropy);
+    fflush(stdout);
     kill(e->pid, SIGSTOP);
     return 0;
 }
